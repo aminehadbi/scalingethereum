@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Cryptoships front-end</title>
+    <script language="javascript" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script language="javascript" type="text/javascript" src="https://cdn.jsdelivr.net/npm/web3@1.2.6/dist/web3.min.js"></script>
+    <script language="javascript" type="text/javascript" src="./abi.js"></script>
+  </head>
+  <body>
+    <div id="txStatus"></div>
+    <div id="ships"></div>
+
+    <script>
+      var CryptoShips;
+      var userAccount;
+
+      function startApp() {
+
+        let web3 = new Web3(Web3.givenProvider || "http://localhost:8545");
+        var cryptoshipsAddress = "0xd168a4a7de26df8937a0cf587f2ceca4f3f9d6c7";
+        CryptoShips = new web3.eth.Contract(abi, cryptoshipsAddress);
+
+        var accountInterval = setInterval(function() {
+         
+          if (web3.eth.accounts[0] !== userAccount) {
+            userAccount = web3.eth.accounts[0];
+           
+            getshipsByOwner(userAccount)
+            .then(displayships);
+          }
+        }, 100);
+
+        CryptoShips.events.Transfer({ filter: { _to: userAccount } })
+        .on("data", function(event) {
+          let data = event.returnValues;
+          getshipsByOwner(userAccount).then(displayships);
+        }).on("error", console.error);
+      }
+
+      function displayships(ids) {
+        $("#ships").empty();
+        for (id of ids) {
+         
+          getshipDetails(id)
+          .then(function(ship) {
+           
+           
+            $("#ships").append(`<div class="ship">
+              <ul>
+                <li>Name: ${ship.name}</li>
+                <li>DNA: ${ship.dna}</li>
+                <li>Level: ${ship.level}</li>
+                <li>Wins: ${ship.winCount}</li>
+                <li>Losses: ${ship.lossCount}</li>
+                <li>Ready Time: ${ship.readyTime}</li>
+              </ul>
+            </div>`);
+          });
+        }
+      }
+
+      function createRandomship(name) {
+       
+       
+        $("#txStatus").text("Creating new ship on the blockchain. This may take a while...");
+       
+        return cryptoships.methods.createRandomship(name)
+        .send({ from: userAccount })
+        .on("receipt", function(receipt) {
+          $("#txStatus").text("Successfully created " + name + "!");
+         
+          getshipsByOwner(userAccount).then(displayships);
+        })
+        .on("error", function(error) {
+         
+          $("#txStatus").text(error);
+        });
+      }
+
+      function feedOnKitty(shipId, kittyId) {
+        $("#txStatus").text("Eating a kitty. This may take a while...");
+        return cryptoships.methods.feedOnKitty(shipId, kittyId)
+        .send({ from: userAccount })
+        .on("receipt", function(receipt) {
+          $("#txStatus").text("Ate a kitty and spawned a new ship!");
+          getshipsByOwner(userAccount).then(displayships);
+        })
+        .on("error", function(error) {
+          $("#txStatus").text(error);
+        });
+      }
+
+      function levelUp(shipId) {
+        $("#txStatus").text("Leveling up your ship...");
+        return cryptoships.methods.levelUp(shipId)
+        .send({ from: userAccount, value: web3.utils.toWei("0.001", "ether") })
+        .on("receipt", function(receipt) {
+          $("#txStatus").text("Power overwhelming! ship successfully leveled up");
+        })
+        .on("error", function(error) {
+          $("#txStatus").text(error);
+        });
+      }
+
+      function getshipDetails(id) {
+        return cryptoships.methods.ships(id).call()
+      }
+
+      function shipToOwner(id) {
+        return cryptoships.methods.shipToOwner(id).call()
+      }
+
+      function getshipsByOwner(owner) {
+        return cryptoships.methods.getshipsByOwner(owner).call()
+      }
+
+      window.addEventListener('load', function() {
+
+       
+        if (typeof web3 !== 'undefined') {
+         
+          var web3 = new Web3(new Web3.providers.WebsocketProvider("wss://mainnet.infura.io/ws"));
+        } else {
+         
+         
+        }
+
+       
+        startApp()
+
+      })
+    </script>
+  </body>
+</html>
+
